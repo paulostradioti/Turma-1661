@@ -1,48 +1,59 @@
 ﻿namespace ConsoleApp3
 {
-    public enum NotificationType
+    public class PaymentDetails
     {
-        SMS,
-        WhatsApp,
-        Email
+        public decimal Amount { get; set; }
     }
 
-    public class Notification
+    public interface IPaymentMethod
     {
-        public NotificationType Type { get; set; }
-        public string Recipient { get; set; }
-        public string Message { get; set; }
+        void Pay(PaymentDetails paymentDetails);
     }
 
-    public interface INotificationSender
+    public class PixPaymentDetails : PaymentDetails
     {
-        void Send(Notification notification);
+        public string Pixkey { get; set; }
     }
 
-    public class EmailNotificationSender : INotificationSender
+    public class PixPaymentMethod : IPaymentMethod
     {
-        public void Send(Notification notification)
+        public void Pay(PaymentDetails paymentDetails)
         {
-            Console.WriteLine("Enviando Notificação por E-mail");
-            Console.WriteLine($"{notification.Recipient} - {notification.Message}");
+            var pixDetails = (PixPaymentDetails)paymentDetails;
+            var chave = pixDetails.Pixkey;
+            Console.WriteLine($"Processando Pagamento Pix - Chave: {chave} - Valor: {pixDetails.Amount}");
         }
     }
 
-    public class SmsNotificationSender : INotificationSender
+    public class CreditCardPaymentDetails : PaymentDetails
     {
-        public void Send(Notification notification)
+        public string CardNumber { get; set; }
+        public string CardHolder { get; set; }
+        public string ExpirationDate { get; set; }
+        public string CVV { get; set; }
+    }
+
+    public class CreditCardPaymentMethod : IPaymentMethod
+    {
+        public void Pay(PaymentDetails paymentDetails)
         {
-            Console.WriteLine("Enviando Notificação por SMS");
-            Console.WriteLine($"{notification.Recipient} - {notification.Message}");
+            var creditCardDetails = (CreditCardPaymentDetails)paymentDetails;
+            Console.WriteLine(creditCardDetails.CardNumber);
+            Console.WriteLine($"Processando Pagamento Cartão de Crédito - Titular: {creditCardDetails.CardHolder} - Valor: {creditCardDetails.Amount}");
         }
     }
 
-    public class WhatsAppNotificationSender : INotificationSender
+
+    public class BoletoPaymentDetails : PaymentDetails
     {
-        public void Send(Notification notification)
+        public string LinhaDigitavel { get; set; }
+    }
+
+    public class BoletoPaymentMethod: IPaymentMethod
+    {
+        public void Pay(PaymentDetails paymentDetails)
         {
-            Console.WriteLine("Enviando Notificação por WhatsApp");
-            Console.WriteLine($"{notification.Recipient} - {notification.Message}");
+            Console.WriteLine($"Processando Pagamento Boleto - Linha Digitável: {((BoletoPaymentDetails)paymentDetails).LinhaDigitavel} - Valor: {paymentDetails.Amount}");
         }
     }
 
@@ -51,28 +62,57 @@
     {
         static void Main(string[] args)
         {
-            // 1 - Tipo da Notificação (SMS, WhatsApp, Email)
-            // 2 - Destinatário 
-            // 3 - Mensagem
-            var notifications = new List<Notification>
-            {
-                new Notification { Type = NotificationType.SMS, Recipient = "123456789", Message = "Olá, esta é uma notificação por SMS!" },
-                new Notification { Type = NotificationType.WhatsApp, Recipient = "987654321", Message = "Olá, esta é uma notificação por WhatsApp!" },
-                new Notification { Type = NotificationType.Email, Recipient = "paulo@paulo.eti.br", Message = "Olá, esta é uma notificação por Email!" }
-            };
+            Console.WriteLine("""
+                Qual o método de pagamento?
+                   1 - Pix
+                   2 - Credit Card
+                   3 - Boleto
+                """);
 
-            var senders = new Dictionary<NotificationType, INotificationSender>
-            {
-                { NotificationType.Email, new EmailNotificationSender() },
-                { NotificationType.SMS, new SmsNotificationSender() },
-                { NotificationType.WhatsApp, new WhatsAppNotificationSender() },
-            };
+            var option = Console.ReadLine();
 
-            foreach (var notification in notifications)
+            PaymentDetails paymentDetails = default;
+            string methodChoice = default;
+
+            if (option == "1")
             {
-                senders.TryGetValue(notification.Type, out var sender);
-                sender.Send(notification);
+                Console.WriteLine("Informe a chave pix");
+                var pixKey = Console.ReadLine();
+
+                paymentDetails = new PixPaymentDetails() { Pixkey = pixKey, Amount = 100 };
+                methodChoice = "Pix";
             }
+            else if (option == "2")
+            {
+                paymentDetails = new CreditCardPaymentDetails
+                {
+                    Amount = 100,
+                    CardNumber = "4111111111111111",
+                    CardHolder = "John Doe",
+                    ExpirationDate = "12/25",
+                    CVV = "123"
+                };
+                methodChoice = "CreditCard";
+            }
+            else if (option == "3")
+            {
+                paymentDetails = new BoletoPaymentDetails
+                {
+                    Amount = 100,
+                    LinhaDigitavel = "23793381286006800000000000000000000000000000"
+                };
+                methodChoice = "Boleto";
+            }
+
+            var paymentMethods = new Dictionary<string, IPaymentMethod>
+            {
+                { "Pix", new PixPaymentMethod() },
+                { "CreditCard", new CreditCardPaymentMethod() },
+                { "Boleto", new BoletoPaymentMethod() }
+             };
+
+            paymentMethods.TryGetValue(methodChoice, out var paymentMethod);
+            paymentMethod.Pay(paymentDetails);
         }
     }
 }
